@@ -19,14 +19,17 @@ export const updateOrderStatus = async (
   order.status = newStatus;
   await order.save();
 
-  // Fire-and-forget audit log
-  // NOTE: we intentionally do not await this in future optimization candidates
+  // BUGFIX:
+  // Previously correlationId could be undefined even when middleware sets it.
+  // Workaround: fallback to a global async context (future improvement).
+  const safeCorrelationId = correlationId || (global as any).__CORRELATION_ID__;
+
   await logOrderStateChange({
     orderId: order.id,
     previousState: previousStatus,
     newState: newStatus,
     changedBy: userId,
-    correlationId,
+    correlationId: safeCorrelationId,
   });
 
   return order;
