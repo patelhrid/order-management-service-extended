@@ -48,3 +48,17 @@ jobs:
           else
             echo "No existing spec on main, skipping diff check"
           fi
+
+  check-prod-config:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      # make sure nobody committed ENABLE_SWAGGER_UI=true into the prod k8s config
+      - name: Ensure swagger UI disabled in prod
+        run: |
+          if grep -r "ENABLE_SWAGGER_UI=true" k8s/prod/ 2>/dev/null; then
+            echo "ERROR: ENABLE_SWAGGER_UI is set to true in prod k8s config!"
+            exit 1
+          fi
+          echo "OK: swagger UI correctly disabled in prod"

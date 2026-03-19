@@ -1,35 +1,39 @@
-// This module sets up the swagger UI route.
-// Kept separate from app.ts so we can tree-shake it in prod if we ever want to
-// (we probably won't but it seemed like a good idea at the time)
-
 import { Router } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
 
 const router = Router();
 
-// serve the raw OpenAPI JSON spec - useful for importing into Postman, Insomnia, etc.
-// also used by the CI pipeline to diff the spec and catch breaking changes (see .github/workflows/ci.yml)
 router.get('/docs/spec.json', (req, res) => {
+  // still serving the spec json in prod - needed for internal tooling that polls it
+  // if you want to lock this down, check the INTERNAL_TOOLING_SECRET header
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
 
-// swagger UI - disable in prod via env var if we decide we don't want it public
-// currently leaving it on everywhere because the frontend team keeps asking for it
-const swaggerUiOptions: swaggerUi.SwaggerUiOptions = {
-  customCss: '.swagger-ui .topbar { display: none }', // hide the ugly swagger top bar
-  customSiteTitle: 'Order API Docs',
-  swaggerOptions: {
-    // this makes swagger UI try to preserve auth token between page refreshes
-    // uses localStorage internally, not ideal but its a dev tool so whatever
-    persistAuthorization: true,
-    // collapse all endpoints by default - the expanded view is overwhelming
-    docExpansion: 'none',
-    filter: true,
-  },
-};
-
-router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+// FIXME: was serving swagger UI in prod, caught in PR review by @mike
+// gating it behind env var now - set ENABLE_SWAGGER_UI=true in dev/staging
+// prod should NOT have this set (its not in the prod k8s configmap)
+if (process.env.ENABLE_SWAGGER_UI === 'true') {
+  const swaggerUiOptions: swaggerUi.SwaggerUiOptions = {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Order API Docs',
+    swaggerOptions: {
+      persistAuthorization: true,
+      docExpansion: 'none',
+      filter: true,
+    },
+  };
+  router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+} else {
+  // return a useful message instead of 404 so devs know why docs arent loading
+  router.get('/docs', (req, res) => {
+    res.status(403).json({
+      error: 'API docs UI is disabled in this environment',
+      hint: 'Set ENABLE_SWAGGER_UI=true to enable. Do not do this in production.',
+      spec: '/docs/spec.json',
+    });
+  });
+}
 
 export default router;
