@@ -237,3 +237,105 @@
 | 2 | 5 | Q4, Q10, Q15, Q18 |
 
 Multi-hop questions (Q4, Q10, Q15, Q18) are the strongest test cases — naive embedding search or model prior knowledge is very unlikely to answer these correctly since the answer requires combining facts from two different files.
+
+---
+
+## Temporal Scenario
+
+T1 (before migration):
+- RabbitMQ exchange name = `order_events`
+
+T2 (after migration):
+- RabbitMQ exchange name = `order_stream`
+
+T2 supersedes T1.
+
+---
+
+## Additional Questions (Q21–Q26)
+
+## Q21
+**Question:** Before the migration, what exchange should be used?
+
+**Gold answer:** `order_events`
+
+**Gold files:** `docs/integration/events.md`
+**Hops:** 1
+**Leakage risk:** LOW
+
+---
+
+## Q22
+**Question:** After the migration, what exchange should be used?
+
+**Gold answer:** `order_stream`
+
+**Gold files:** `docs/integration/events.md`
+**Hops:** 1
+**Leakage risk:** LOW
+
+---
+
+## Q23
+**Question:** What changed in the event system configuration during the migration?
+
+**Gold answer:** The RabbitMQ exchange name changed from `order_events` to `order_stream`.
+
+**Gold files:** `docs/integration/events.md`
+**Hops:** 1
+**Leakage risk:** LOW
+
+---
+
+## Q24
+**Question:** Why might consumers break after the migration?
+
+**Gold answer:** Consumers that still publish to or subscribe to `order_events` will break after the migration because T2 supersedes T1 and the exchange name is now `order_stream`.
+
+**Gold files:** `docs/integration/events.md`
+**Hops:** 2
+**Leakage risk:** LOW
+
+---
+
+## Q25
+**Question:** What exchange should I use?
+
+**Gold answer:** `order_stream`
+
+**Gold files:** `docs/integration/events.md`
+**Hops:** 1
+**Leakage risk:** LOW
+
+---
+
+## Q26
+**Question:** A consumer was configured last quarter and has not been updated since the migration. Which exchange is it most likely still using?
+
+**Gold answer:** `order_events`
+
+**Gold files:** `docs/integration/events.md`
+**Hops:** 2
+**Leakage risk:** LOW
+
+---
+
+## Q27
+**Question:** The original exchange table in the events documentation says `order_events`, but you are integrating after the migration. Which exchange should you use now?
+
+**Gold answer:** `order_stream`
+
+**Gold files:** `docs/integration/events.md` + `docs/integration/events-migration.md`
+**Hops:** 2
+**Leakage risk:** LOW
+
+---
+
+## Q28
+**Question:** A consumer was implemented from the original events documentation and still binds to `order_events`. Why would it stop receiving new order-created traffic after the migration?
+
+**Gold answer:** Because `events.md` reflects the original T1 exchange `order_events`, but the migration moved traffic to `order_stream` and T2 supersedes T1. The consumer must be updated to bind to `order_stream`; the routing key `order.created` did not change.
+
+**Gold files:** `docs/integration/events.md` + `docs/integration/events-migration.md`
+**Hops:** 2
+**Leakage risk:** LOW
